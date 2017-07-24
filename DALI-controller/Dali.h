@@ -26,8 +26,6 @@ allowing us to transmit even with up to 100% in clock speed difference
 #define GETMAX_C      0xA1
 #define RESET         0x20
 
-#define P(fmt, ...) p(F(fmt), __VA_ARGS__);
-
 //setup timing for transmitter
 #define HALF_BIT_INTERVAL 1666 
 
@@ -37,6 +35,8 @@ allowing us to transmit even with up to 100% in clock speed difference
   #include "WProgram.h"
   #include <pins_arduino.h>
 #endif
+#include "P.h"
+
 
 class Dali
 {
@@ -51,6 +51,9 @@ class Dali
 	void scanShortAdd(); //scan for short address
 	void busInit(); // bus test
 	void initialisation(); //initialization of new luminaries
+    void randomise();
+    void searchaddr(long longaddr);
+    void assignaddr();
 	bool cmdCheck(const char *input, int & cmd1, int & cmd2);
 	uint8_t receive(); //get response
 
@@ -66,12 +69,9 @@ class Dali
 	bool getResponse;
 	uint8_t RxAnalogPin;
 
-	unsigned long daliTimeout = 20000; //us, DALI response timeout
+	unsigned long daliTimeout = 40000; //us, DALI response timeout
 	int analogLevel = 870; //analog border level (less - "0"; more - "1")
 	
-
-
-    
   private:
 	
 	void sendByte(uint8_t b); //transmit 8 bits of data
@@ -87,14 +87,6 @@ class Dali
 	uint8_t rxAnalogPin = 0;
 
 };//end of class Dali
-
-// Cant really do this as a real C++ class, since we need to have
-// an ISR
-extern "C"
-{
-    
-    
-   }
 
 extern Dali dali;
 

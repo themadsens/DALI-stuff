@@ -10,8 +10,8 @@ void help() {
   PN("Enter <ADDR>,<CMD> or another command from list:");
   PN("<ADDR>,<CMD>: Numbers, either: XX or DDD or BBBBBBBB");
   PN("help       - command list");
-  PN("on         - broadcast on 99%");
-  PN("off        - broadcast off -1%");
+  PN("on         - broadcast on");
+  PN("off        - broadcast off");
   PN("scan       - device short address scan");
   PN("reset      - Redo bus init sequence");
   PN("terse      - Driver mode");
@@ -77,9 +77,9 @@ void command(const char *cmdStr) {
   else if (0 == strcmp(cmdStr, "scan"))
     dali.scanShortAdd();                 // scan short addresses 
   else if (0 == strcmp(cmdStr, "on"))
-    dali.transmit(BROADCAST_C, ON_C);    // broadcast, 100%
+    dali.transmit(BROADCAST_C, ON_C);    // broadcast MAX-LEVEL
   else if (0 == strcmp(cmdStr, "off"))
-    dali.transmit(BROADCAST_C, OFF_C);   // broadcast, 0%
+    dali.transmit(BROADCAST_C, OFF_C);   // broadcast OFF
   else if (0 == strcmp(cmdStr, "initialise"))
     dali.initialisation();              // initialisation
   else if (0 == strcmp(cmdStr, "randomise"))

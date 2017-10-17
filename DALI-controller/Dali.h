@@ -49,13 +49,13 @@ class Dali
 	void setupAnalogReceive(uint8_t pin);
     void transmit(uint8_t cmd1, uint8_t cmd2); //transmit 16 bits of data
 	void scanShortAdd(); //scan for short address
-	void busInit(); // bus test
+	void busInit(int addr); // bus test
 	void initialisation(); //initialization of new luminaries
     void randomise();
     void searchaddr(long longaddr);
     void assignaddr();
-	bool cmdCheck(const char *input, int & cmd1, int & cmd2);
 	uint8_t receive(); //get response
+    bool readNumberString(const char *s, int len, int &test);
 
 	int minResponseLevel(); 
 	int maxResponseLevel();
@@ -70,7 +70,6 @@ class Dali
 	uint8_t RxAnalogPin;
 
 	unsigned long daliTimeout = 40000; //us, DALI response timeout
-	int analogLevel = 870; //analog border level (less - "0"; more - "1")
 	
   private:
 	
@@ -79,12 +78,13 @@ class Dali
 	void sendZero(void); //transmit "0"
     void sendOne(void); //transmit "1"
    	void splitAdd(long input, uint8_t &highbyte, uint8_t &middlebyte, uint8_t &lowbyte); //split random address 
-    int readNumberString(const char *s, int len, boolean &test);
 
 	uint8_t TxPin;
 	
     uint8_t applyWorkAround1Mhz;
 	uint8_t rxAnalogPin = 0;
+	int analogLevelHi = 999; //analog border level (less - "0"; more - "1")
+	int analogLevelLo = 750; //analog border level (less - "0"; more - "1")
 
 };//end of class Dali
 

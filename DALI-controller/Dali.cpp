@@ -108,7 +108,7 @@ void Dali::sendOne(void)
   delayMicroseconds(delay1);
 }
 
-void Dali::busInit() //DALI bus test
+void Dali::busInit(int addr) //DALI bus test
 {
   int maxLevel;
   int minLevel;
@@ -116,24 +116,25 @@ void Dali::busInit() //DALI bus test
   //Luminaries must turn on and turn off. If not, check connection.
   if (dali.msgMode) {
     delay(100);
-    dali.transmit(BROADCAST_C, ON_C); //Broadcast OFF
+    dali.transmit(addr, ON_C); //Broadcast OFF
     delay(500);
-    dali.transmit(BROADCAST_C, OFF_C); //Broadcast ON
+    dali.transmit(addr, OFF_C); //Broadcast ON
     delay(100);
   }
   
   //Receive response from luminaries: max and min level
-  dali.transmit(BROADCAST_C, QUERY_STATUS);
+  dali.transmit(addr, QUERY_STATUS);
   maxLevel = dali.maxResponseLevel();
-  dali.transmit(BROADCAST_C, QUERY_STATUS);
+  dali.transmit(addr, QUERY_STATUS);
   minLevel = dali.minResponseLevel();
 
-  dali.analogLevel = (int)(maxLevel + minLevel) / 2;
+  dali.analogLevelHi = (int)(minLevel + (maxLevel - minLevel) / 4 * 2);
+  dali.analogLevelLo = (int)(minLevel + (maxLevel - minLevel) / 4 * 1);
 
   if (dali.msgMode)
-    PN("Bus levels: %d, %d", maxLevel, minLevel);
+    PN("Bus levels: %d, %d => %d, %d", maxLevel, minLevel, dali.analogLevelHi, dali.analogLevelLo);
   else
-    Serial.println(dali.analogLevel);
+    PN("%d %d", dali.analogLevelHi, dali.analogLevelLo);
 }
 
 void Dali::splitAdd(long input, uint8_t &highbyte, uint8_t &middlebyte, uint8_t &lowbyte) 
@@ -236,53 +237,39 @@ void Dali::scanShortAdd()
   delay(delayTime);
 }
 
-int Dali::readNumberString(const char *s, int len, boolean &test) 
+bool Dali::readNumberString(const char *s, int len, int &result) 
 {
-  int result = 0;
-
   if (len == 8) {
-    while (len-- > 0 && test) {
+    while (len-- > 0) {
       if (isdigit(*s) && *s < 2)
         result = result * 2 + (*s++ - '0');
       else
-        test = false;
+        return false;
     }
   }
   else if (len == 3) {
-    while (len-- > 0 && test) {
+    while (len-- > 0) {
       if (isdigit(*s))
         result = result * 10 + (*s++ - '0');
       else
-        test = false;
+        return false;
     }
   }
   else if (len == 2) {
-    while (len-- > 0 && test) {
+    while (len-- > 0) {
       if (isdigit(*s))
         result = result * 16 + (*s++ - '0');
       else if (isxdigit(*s))
         result = result * 16 + (toupper(*s++) - 'A' + 10);
       else
-        test = false;
+        return false;
     }
   }
   else
-    test = false;
-  return result;
-}
-
-bool Dali::cmdCheck(const char *input, int & cmd1, int & cmd2) 
-{
-  char *sep = strchr(input, ',');
-  if (!sep)
     return false;
-
-  boolean test = true;
-  cmd1 = readNumberString(input, sep - input, test);
-  cmd2 = readNumberString(sep+1, strlen(sep+1), test);
-
-  return test;
+  return true;
 }
+
 
 void Dali::initialisation() {
   dali.randomise();
@@ -390,70 +377,59 @@ void Dali::assignaddr() {
 }
 
 uint8_t Dali::receive() {
-  unsigned long startFuncTime = 0;
-  bool previousLogicLevel = 1;
-  bool currentLogicLevel = 1;
-  uint8_t arrLength = 20;
-  int  timeArray[arrLength];
-  int i = 0;
-  int k = 0;
-  bool logicLevelArray[arrLength];
+  uint32_t startFuncTime = 0;
+  uint32_t lastTime;
+  uint32_t duration;
+  uint8_t previousLogicLevel = 1;
+  uint8_t currentLogicLevel = 1;
+  int halfBit = 0;
   int response = 0;
 
   dali.getResponse = false;
-  startFuncTime = micros();
+  startFuncTime = lastTime = micros();
   
-  // add check for micros overlap here!!!
+  // See: https://e2e.ti.com/support/microcontrollers/msp430/f/166/t/508654
 
-  while (micros() - startFuncTime < dali.daliTimeout && i < arrLength)
-  {
+  while (micros() - startFuncTime < dali.daliTimeout) {
     // geting response
-    if (analogRead(dali.RxAnalogPin) > dali.analogLevel) {
+    int anaLevel = analogRead(dali.RxAnalogPin);
+    if (0 == currentLogicLevel && anaLevel > dali.analogLevelHi) {
       currentLogicLevel = 1;
     }
-    else {
+    else if (1 == currentLogicLevel && anaLevel < dali.analogLevelLo) {
       currentLogicLevel = 0;
     }
 
-    if (previousLogicLevel != currentLogicLevel) {
-      timeArray[i] = micros() - startFuncTime;
-      logicLevelArray[i] = currentLogicLevel;
-      previousLogicLevel = currentLogicLevel;
-      i++;
+    if (previousLogicLevel == currentLogicLevel) continue;
+
+    previousLogicLevel = currentLogicLevel;
+    duration = micros() - lastTime;
+    lastTime += duration;
+    halfBit++;
+
+    //P("%04d ", duration);
+
+    if (halfBit == 1) continue;
+
+    if (halfBit == 2) {
+      if (duration > dali.period/4*3)
+        break;
+      continue;
+    }
+    if (duration > dali.period*3/2)
+      break;
+
+    if (duration > dali.period/4*3)
+      halfBit++;
+
+    if (0 == (halfBit%2)) {
+      response = (response << 1) | currentLogicLevel ;
     }
   }
-  arrLength = i;
+  //PN("%02d", halfBit);
 
-  if (arrLength < 10) { // 8 data bits + a "1" start bit => >10 shifts
-    dali.getResponse = false;
-    return arrLength;
-  }
-  dali.getResponse = true;
-
-  //decoding to manchester
-  for (i = 0; i < arrLength - 1; i++) {
-    if ((timeArray[i + 1] - timeArray[i]) > 0.75 * dali.period) {
-      for (k = arrLength; k > i; k--) {
-        timeArray[k] = timeArray[k - 1];
-        logicLevelArray[k] = logicLevelArray[k - 1];
-      }
-      arrLength++;
-      timeArray[i + 1] = (timeArray[i] + timeArray[i + 2]) / 2;
-      logicLevelArray[i + 1] = logicLevelArray[i];
-    }
-  }
-
-  k = 8;
-  for (i = 1; i < arrLength; i++) {
-    if (logicLevelArray[i] == 1) {
-      if ((int)round((timeArray[i] - timeArray[0]) / (0.5 * dali.period)) & 1) {
-        response = response + (1 << k);
-      }
-      k--;
-    }
-  }
-  
-  //remove start bit
+  dali.getResponse = halfBit >= 18 && halfBit < 20;
+    
   return response & 0xFF;
 }
 

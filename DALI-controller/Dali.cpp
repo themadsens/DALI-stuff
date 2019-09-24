@@ -239,6 +239,7 @@ void Dali::scanShortAdd()
 
 bool Dali::readNumberString(const char *s, int len, int &result) 
 {
+  result = 0;
   if (len == 8) {
     while (len-- > 0) {
       if (isdigit(*s) && *s < 2)

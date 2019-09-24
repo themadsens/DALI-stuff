@@ -13,7 +13,9 @@ static void help() {
   PN("<ADDR> <CMD>: Numbers, either: XX or DDD or BBBBBBBB");
   PN("help       - command list");
   PN("on         - broadcast on");
+  PN("on <ADDR>  - Set <ADDR> on");
   PN("off        - broadcast off");
+  PN("off <ADDR> - Set <ADDR> off");
   PN("scan       - device short address scan");
   PN("reset      - Redo bus init sequence (Establish voltage levels)");
   PN("terse      - Driver mode");
@@ -115,10 +117,17 @@ static void command(char *cmdStr) {
     sinus();
   else if (0 == strcmp(cmdStr, "scan"))
     dali.scanShortAdd();                 // scan short addresses 
-  else if (0 == strcmp(cmdStr, "on"))
+  else if (0 == strcmp(cmdStr, "on") && argC == 1)
     dali.transmit(BROADCAST_C, ON_C);    // broadcast MAX-LEVEL
-  else if (0 == strcmp(cmdStr, "off"))
+  else if (0 == strcmp(cmdStr, "on") && argC == 2 && dali.readNumberString(arg[1], strlen(arg[1]), cmd1))
+    dali.transmit(cmd1 * 2 + 1, ON_C);    // Set MAX-LEVEL
+  else if (0 == strcmp(cmdStr, "on") && argC == 3 && dali.readNumberString(arg[1], strlen(arg[1]), cmd1)  &&
+                                                     dali.readNumberString(arg[2], strlen(arg[2]), cmd2))
+    dali.transmit(cmd1 * 2, cmd2);    // Set Level
+  else if (0 == strcmp(cmdStr, "off") && argC == 1)
     dali.transmit(BROADCAST_C, OFF_C);   // broadcast OFF
+  else if (0 == strcmp(cmdStr, "off") && argC == 2 && dali.readNumberString(arg[1], strlen(arg[1]), cmd1))
+    dali.transmit(cmd1 * 2 + 1, OFF_C);   // Set OFF
   else if (0 == strcmp(cmdStr, "initialise"))
     dali.initialisation();              // initialisation
   else if (0 == strcmp(cmdStr, "randomise"))
